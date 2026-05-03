@@ -576,15 +576,8 @@ def process_root_partition_size(total_size: Size, sector_size: SectorSize) -> Si
 
 
 def get_default_btrfs_subvols() -> list[SubvolumeModification]:
-	# https://btrfs.wiki.kernel.org/index.php/FAQ
-	# https://unix.stackexchange.com/questions/246976/btrfs-subvolume-uuid-clash
-	# https://github.com/classy-giraffe/easy-arch/blob/main/easy-arch.sh
-	return [
-		SubvolumeModification(Path('@'), Path('/')),
-		SubvolumeModification(Path('@home'), Path('/home')),
-		SubvolumeModification(Path('@log'), Path('/var/log')),
-		SubvolumeModification(Path('@pkg'), Path('/var/cache/pacman/pkg')),
-	]
+	from archinstall.lib.disk.subvolume_menu import get_recommended_btrfs_subvols
+	return get_recommended_btrfs_subvols()
 
 
 async def suggest_single_disk_layout(

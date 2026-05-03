@@ -10,6 +10,17 @@ from archinstall.tui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.result import ResultType
 
 
+def get_recommended_btrfs_subvols() -> list[SubvolumeModification]:
+	return [
+		SubvolumeModification(Path('@'), Path('/'), [BtrfsMountOption.compress.value]),
+		SubvolumeModification(Path('@home'), Path('/home'), [BtrfsMountOption.compress.value]),
+		SubvolumeModification(Path('@pkg'), Path('/var/cache/pacman/pkg'), [BtrfsMountOption.compress.value]),
+		SubvolumeModification(Path('@log'), Path('/var/log'), [BtrfsMountOption.compress.value]),
+		SubvolumeModification(Path('@docker'), Path('/var/lib/docker'), [BtrfsMountOption.nodatacow.value]),
+		SubvolumeModification(Path('@libvirt'), Path('/var/lib/libvirt'), [BtrfsMountOption.nodatacow.value]),
+	]
+
+
 class SubvolumeMenu(ListManager[SubvolumeModification]):
 	def __init__(
 		self,
@@ -19,6 +30,7 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 	):
 		self._actions = [
 			tr('Add subvolume'),
+			tr('Use recommended configuration'),
 			tr('Edit subvolume'),
 			tr('Delete subvolume'),
 		]
@@ -26,8 +38,8 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 
 		super().__init__(
 			btrfs_subvols,
-			[self._actions[0]],
-			self._actions[1:],
+			self._actions[:2],
+			self._actions[2:],
 			prompt,
 		)
 
@@ -134,15 +146,17 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 				# was created we'll replace the existing one
 				data = [d for d in data if d.name != new_subvolume.name]
 				data += [new_subvolume]
+		elif action == self._actions[1]:
+			data = get_recommended_btrfs_subvols()
 		elif entry is not None:
-			if action == self._actions[1]:
+			if action == self._actions[2]:
 				new_subvolume = await self._add_subvolume(entry)
 
 				if new_subvolume is not None:
 					# we'll remove the original subvolume and add the modified version
 					data = [d for d in data if d.name != entry.name and d.name != new_subvolume.name]
 					data += [new_subvolume]
-			elif action == self._actions[2]:
+			elif action == self._actions[3]:
 				data = [d for d in data if d != entry]
 
 		return data

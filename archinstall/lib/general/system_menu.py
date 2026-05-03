@@ -1,7 +1,7 @@
 from typing import assert_never
 
 from archinstall.lib.hardware import GfxDriver, SysInfo
-from archinstall.lib.menu.helpers import Confirmation, Selection
+from archinstall.lib.menu.helpers import Confirmation, Input, Selection
 from archinstall.lib.models.application import ZramAlgorithm, ZramConfiguration
 from archinstall.lib.models.package_types import DEFAULT_KERNEL, Kernel
 from archinstall.lib.translationhandler import tr
@@ -102,6 +102,18 @@ async def select_driver(options: list[GfxDriver] = [], preset: GfxDriver | None 
 			return result.get_value()
 
 
+def _validate_percent(value: str | None) -> str | None:
+	if value is None:
+		return tr('Value cannot be empty')
+	try:
+		percent = int(value)
+		if 1 <= percent <= 100:
+			return None
+		return tr('Value must be between 1 and 100')
+	except ValueError:
+		return tr('Value must be a number')
+
+
 async def select_swap(preset: ZramConfiguration = ZramConfiguration(enabled=True)) -> ZramConfiguration:
 	prompt = tr('Would you like to use swap on zram?') + '\n'
 
@@ -144,6 +156,28 @@ async def select_swap(preset: ZramConfiguration = ZramConfiguration(enabled=True
 				case _:
 					assert_never(algo_result.type_)
 
-			return ZramConfiguration(enabled=True, algorithm=algo)
+			# Ask for disk size percentage
+			disk_size_result = await Input(
+				header=tr('What percentage of RAM for zram?') + '\n',
+				default_value=str(preset.disk_size_percent),
+				validator_callback=_validate_percent,
+				allow_skip=True,
+			).show()
+
+			match disk_size_result.type_:
+				case ResultType.Skip:
+					disk_size_percent = preset.disk_size_percent
+				case ResultType.Selection:
+					disk_size_percent = int(disk_size_result.get_value())
+				case ResultType.Reset:
+					raise ValueError('Unhandled result type')
+				case _:
+					assert_never(disk_size_result.type_)
+
+			return ZramConfiguration(
+				enabled=True,
+				algorithm=algo,
+				disk_size_percent=disk_size_percent,
+			)
 		case ResultType.Reset:
 			raise ValueError('Unhandled result type')

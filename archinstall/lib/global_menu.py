@@ -411,6 +411,7 @@ class GlobalMenu(AbstractMenu[None]):
 			output += tr('Enabled') if item.value.enabled else tr('Disabled')
 			if item.value.enabled:
 				output += f'\n{tr("Compression algorithm")}: {item.value.algorithm.value}'
+				output += f'\n{tr("Disk size")}: {item.value.disk_size_percent}% {tr("of RAM")}'
 			return output
 		return None
 

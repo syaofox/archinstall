@@ -171,6 +171,14 @@ class FontsConfiguration:
 class ZramConfiguration:
 	enabled: bool
 	algorithm: ZramAlgorithm = ZramAlgorithm.ZSTD
+	disk_size_percent: int = 50
+
+	def json(self) -> dict[str, Any]:
+		return {
+			'enabled': self.enabled,
+			'algorithm': self.algorithm.value,
+			'disk_size_percent': self.disk_size_percent,
+		}
 
 	@classmethod
 	def parse_arg(cls, arg: bool | dict[str, Any]) -> Self:
@@ -179,7 +187,12 @@ class ZramConfiguration:
 
 		enabled = arg.get('enabled', True)
 		algo = arg.get('algorithm', arg.get('algo', ZramAlgorithm.ZSTD.value))
-		return cls(enabled=enabled, algorithm=ZramAlgorithm(algo))
+		disk_size_percent = arg.get('disk_size_percent', 50)
+		return cls(
+			enabled=enabled,
+			algorithm=ZramAlgorithm(algo),
+			disk_size_percent=disk_size_percent,
+		)
 
 
 @dataclass

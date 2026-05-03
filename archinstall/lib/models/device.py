@@ -625,12 +625,14 @@ class _DeviceInfo:
 class _SubvolumeModificationSerialization(TypedDict):
 	name: str
 	mountpoint: str
+	mount_options: list[str]
 
 
 @dataclass
 class SubvolumeModification:
 	name: Path | str
 	mountpoint: Path | None = None
+	mount_options: list[str] = field(default_factory=list)
 
 	@classmethod
 	def from_existing_subvol_info(cls, info: _BtrfsSubvolumeInfo) -> Self:
@@ -645,8 +647,9 @@ class SubvolumeModification:
 				continue
 
 			mountpoint = Path(entry['mountpoint']) if entry['mountpoint'] else None
+			mount_options = entry.get('mount_options', [])
 
-			mods.append(cls(entry['name'], mountpoint))
+			mods.append(cls(entry['name'], mountpoint, mount_options))
 
 		return mods
 
@@ -670,10 +673,18 @@ class SubvolumeModification:
 		return self.name == Path('@') and self.is_root()
 
 	def json(self) -> _SubvolumeModificationSerialization:
-		return {'name': str(self.name), 'mountpoint': str(self.mountpoint)}
+		return {
+			'name': str(self.name),
+			'mountpoint': str(self.mountpoint),
+			'mount_options': self.mount_options,
+		}
 
-	def table_data(self) -> _SubvolumeModificationSerialization:
-		return self.json()
+	def table_data(self) -> dict[str, str]:
+		return {
+			'name': str(self.name),
+			'mountpoint': str(self.mountpoint),
+			'mount_options': ', '.join(self.mount_options),
+		}
 
 
 class DeviceGeometry:

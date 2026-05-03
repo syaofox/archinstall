@@ -435,7 +435,8 @@ class Installer:
 		subvols_with_mountpoints = [sv for sv in subvolumes if sv.mountpoint is not None]
 		for subvol in sorted(subvols_with_mountpoints, key=lambda x: x.relative_mountpoint):
 			mountpoint = self.target / subvol.relative_mountpoint
-			options = mount_options + [f'subvol={subvol.name}']
+			effective_options = subvol.mount_options if subvol.mount_options else mount_options
+			options = effective_options + [f'subvol={subvol.name}']
 			mount(dev_path, mountpoint, options=options)
 
 	def generate_key_files(self) -> None:

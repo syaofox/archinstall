@@ -383,6 +383,7 @@ class PartitioningList(ListManager[DiskSegment]):
 		subvols = await SubvolumeMenu(
 			partition.btrfs_subvols,
 			None,
+			partition.mount_options,
 		).show()
 
 		if subvols is not None:

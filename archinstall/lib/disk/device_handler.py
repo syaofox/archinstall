@@ -424,7 +424,7 @@ class DeviceHandler:
 		self,
 		path: Path,
 		btrfs_subvols: list[SubvolumeModification],
-		mount_options: list[str],
+		mount_options: list[str] = [],
 	) -> None:
 		info(f'Creating subvolumes: {path}')
 
@@ -437,13 +437,15 @@ class DeviceHandler:
 
 			SysCommand(f'btrfs subvolume create -p {subvol_path}')
 
-			if BtrfsMountOption.nodatacow.value in mount_options:
+			subvol_options = sub_vol.mount_options if sub_vol.mount_options else mount_options
+
+			if BtrfsMountOption.nodatacow.value in subvol_options:
 				try:
 					SysCommand(f'chattr +C {subvol_path}')
 				except SysCallError as err:
 					raise DiskError(f'Could not set nodatacow attribute at {subvol_path}: {err}')
 
-			if BtrfsMountOption.compress.value in mount_options:
+			if BtrfsMountOption.compress.value in subvol_options:
 				try:
 					SysCommand(f'chattr +c {subvol_path}')
 				except SysCallError as err:
@@ -481,7 +483,6 @@ class DeviceHandler:
 			dev_path,
 			self._TMP_BTRFS_MOUNT,
 			create_target_mountpoint=True,
-			options=part_mod.mount_options,
 		)
 
 		for sub_vol in sorted(part_mod.btrfs_subvols, key=lambda x: x.name):
@@ -490,6 +491,20 @@ class DeviceHandler:
 			subvol_path = self._TMP_BTRFS_MOUNT / sub_vol.name
 
 			SysCommand(f'btrfs subvolume create -p {subvol_path}')
+
+			subvol_options = sub_vol.mount_options if sub_vol.mount_options else part_mod.mount_options
+
+			if BtrfsMountOption.nodatacow.value in subvol_options:
+				try:
+					SysCommand(f'chattr +C {subvol_path}')
+				except SysCallError as err:
+					raise DiskError(f'Could not set nodatacow attribute at {subvol_path}: {err}')
+
+			if BtrfsMountOption.compress.value in subvol_options:
+				try:
+					SysCommand(f'chattr +c {subvol_path}')
+				except SysCallError as err:
+					raise DiskError(f'Could not set compress attribute at {subvol_path}: {err}')
 
 		umount(dev_path)
 

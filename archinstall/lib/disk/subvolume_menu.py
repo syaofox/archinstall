@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import assert_never, override
 
-from archinstall.lib.menu.helpers import Input
+from archinstall.lib.menu.helpers import Input, Selection
 from archinstall.lib.menu.list_manager import ListManager
 from archinstall.lib.menu.util import prompt_dir
-from archinstall.lib.models.device import SubvolumeModification
+from archinstall.lib.models.device import BtrfsMountOption, SubvolumeModification
 from archinstall.lib.translationhandler import tr
+from archinstall.tui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.result import ResultType
 
 
@@ -14,12 +15,14 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 		self,
 		btrfs_subvols: list[SubvolumeModification],
 		prompt: str | None = None,
+		default_mount_options: list[str] = [],
 	):
 		self._actions = [
 			tr('Add subvolume'),
 			tr('Edit subvolume'),
 			tr('Delete subvolume'),
 		]
+		self._default_mount_options = default_mount_options
 
 		super().__init__(
 			btrfs_subvols,
@@ -34,6 +37,46 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 	@override
 	def selected_action_display(self, selection: SubvolumeModification) -> str:
 		return str(selection.name)
+
+	async def _select_mount_options(
+		self,
+		subvol_name: str,
+		preset_options: list[str] = [],
+	) -> list[str]:
+		header = f'{tr("Subvolume")}: {subvol_name}\n'
+		header += tr('Would you like to use compression or disable CoW?')
+		compression = tr('Use compression')
+		disable_cow = tr('Disable Copy-on-Write')
+		skip_label = tr('Skip')
+
+		items = [
+			MenuItem(compression, value=BtrfsMountOption.compress.value),
+			MenuItem(disable_cow, value=BtrfsMountOption.nodatacow.value),
+			MenuItem(skip_label, value=''),
+		]
+
+		preset = ''
+		if BtrfsMountOption.compress.value in preset_options:
+			preset = BtrfsMountOption.compress.value
+		elif BtrfsMountOption.nodatacow.value in preset_options:
+			preset = BtrfsMountOption.nodatacow.value
+
+		group = MenuItemGroup(items, sort_items=False)
+		if preset:
+			group.set_focus_by_value(preset)
+
+		result = await Selection[str](
+			group,
+			header=header,
+			allow_skip=False,
+		).show()
+
+		match result.type_:
+			case ResultType.Selection:
+				value = result.get_value()
+				return [value] if value else []
+			case _:
+				return []
 
 	async def _add_subvolume(self, preset: SubvolumeModification | None = None) -> SubvolumeModification | None:
 		def validate(value: str | None) -> str | None:
@@ -71,7 +114,10 @@ class SubvolumeMenu(ListManager[SubvolumeModification]):
 		if not path:
 			return preset
 
-		return SubvolumeModification(Path(name), path)
+		preset_options = preset.mount_options if preset else self._default_mount_options
+		mount_options = await self._select_mount_options(name, preset_options)
+
+		return SubvolumeModification(Path(name), path, mount_options)
 
 	@override
 	async def handle_action(

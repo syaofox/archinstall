@@ -420,6 +420,23 @@ class DeviceHandler:
 
 		return lsblk_info
 
+	@staticmethod
+	def _merge_mount_options(
+		base_options: list[str],
+		override_options: list[str],
+	) -> list[str]:
+		if not override_options:
+			return list(base_options)
+		result = list(base_options)
+		for opt in override_options:
+			if opt == 'nodatacow':
+				result = [o for o in result if not o.startswith('compress=')]
+			elif opt.startswith('compress='):
+				result = [o for o in result if o != 'nodatacow']
+			if opt not in result:
+				result.append(opt)
+		return result
+
 	def create_lvm_btrfs_subvolumes(
 		self,
 		path: Path,
@@ -437,7 +454,7 @@ class DeviceHandler:
 
 			SysCommand(f'btrfs subvolume create -p {subvol_path}')
 
-			subvol_options = sub_vol.mount_options if sub_vol.mount_options else mount_options
+			subvol_options = self._merge_mount_options(mount_options, sub_vol.mount_options)
 
 			if BtrfsMountOption.nodatacow.value in subvol_options:
 				try:
@@ -492,7 +509,7 @@ class DeviceHandler:
 
 			SysCommand(f'btrfs subvolume create -p {subvol_path}')
 
-			subvol_options = sub_vol.mount_options if sub_vol.mount_options else part_mod.mount_options
+			subvol_options = self._merge_mount_options(part_mod.mount_options, sub_vol.mount_options)
 
 			if BtrfsMountOption.nodatacow.value in subvol_options:
 				try:

@@ -435,9 +435,26 @@ class Installer:
 		subvols_with_mountpoints = [sv for sv in subvolumes if sv.mountpoint is not None]
 		for subvol in sorted(subvols_with_mountpoints, key=lambda x: x.relative_mountpoint):
 			mountpoint = self.target / subvol.relative_mountpoint
-			effective_options = subvol.mount_options if subvol.mount_options else mount_options
+			effective_options = self._merge_mount_options(mount_options, subvol.mount_options)
 			options = effective_options + [f'subvol={subvol.name}']
 			mount(dev_path, mountpoint, options=options)
+
+	@staticmethod
+	def _merge_mount_options(
+		base_options: list[str],
+		override_options: list[str],
+	) -> list[str]:
+		if not override_options:
+			return list(base_options)
+		result = list(base_options)
+		for opt in override_options:
+			if opt == 'nodatacow':
+				result = [o for o in result if not o.startswith('compress=')]
+			elif opt.startswith('compress='):
+				result = [o for o in result if o != 'nodatacow']
+			if opt not in result:
+				result.append(opt)
+		return result
 
 	def generate_key_files(self) -> None:
 		match self._disk_encryption.encryption_type:

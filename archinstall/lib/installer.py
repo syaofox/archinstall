@@ -436,7 +436,7 @@ class Installer:
 		for subvol in sorted(subvols_with_mountpoints, key=lambda x: x.relative_mountpoint):
 			mountpoint = self.target / subvol.relative_mountpoint
 			effective_options = self._merge_mount_options(mount_options, subvol.mount_options)
-			options = effective_options + [f'subvol={subvol.name}']
+			options = [f'subvol={subvol.name}'] + effective_options
 			mount(dev_path, mountpoint, options=options)
 
 	@staticmethod
